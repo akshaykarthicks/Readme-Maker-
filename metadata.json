@@ -1,0 +1,5 @@
+{
+  "name": "GitHub README Generator",
+  "description": "An AI-powered tool that analyzes a GitHub repository link to generate a comprehensive, professional, and visually appealing README.md file, including project description, setup instructions, and workflow diagrams.",
+  "requestFramePermissions": []
+}
