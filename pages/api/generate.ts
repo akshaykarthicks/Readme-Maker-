@@ -1,5 +1,5 @@
-
 import { GoogleGenAI } from "@google/genai";
+import type { NextApiRequest, NextApiResponse } from 'next';
 
 if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable not set");
@@ -91,44 +91,60 @@ You are a GitHub README Generator, an AI expert at creating professional READMEs
     `;
 };
 
-export const generateReadmeFromRepo = async (repoUrl: string): Promise<string> => {
-    // 1. Parse URL robustly
-    let owner: string;
-    let repo: string;
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    const { repoUrl } = req.body;
+
+    if (!repoUrl) {
+        return res.status(400).json({ error: 'repoUrl is required' });
+    }
+
     try {
-        const url = new URL(repoUrl);
-        // Split pathname and filter out empty strings from leading/trailing slashes
-        const pathParts = url.pathname.split('/').filter(Boolean);
-        if (url.hostname !== 'github.com' || pathParts.length < 2) {
-             throw new Error("URL must be a valid GitHub repository link.");
+        // 1. Parse URL robustly
+        let owner: string;
+        let repo: string;
+        try {
+            const url = new URL(repoUrl);
+            // Split pathname and filter out empty strings from leading/trailing slashes
+            const pathParts = url.pathname.split('/').filter(Boolean);
+            if (url.hostname !== 'github.com' || pathParts.length < 2) {
+                 throw new Error("URL must be a valid GitHub repository link.");
+            }
+            owner = pathParts[0];
+            // Strip .git suffix from repo name if present
+            repo = pathParts[1].replace(/\.git$/, '');
+        } catch (e) {
+             throw new Error("Invalid GitHub URL format. Expected 'https://github.com/owner/repo'.");
         }
-        owner = pathParts[0];
-        // Strip .git suffix from repo name if present
-        repo = pathParts[1].replace(/\.git$/, '');
-    } catch (e) {
-         throw new Error("Invalid GitHub URL format. Expected 'https://github.com/owner/repo'.");
-    }
 
-    // 2. Fetch data from GitHub API
-    const repoData = await fetchRepoData(owner, repo);
+        // 2. Fetch data from GitHub API
+        const repoData = await fetchRepoData(owner, repo);
 
-    // 3. Create a detailed prompt
-    const prompt = createPrompt(repoUrl, repoData);
-    
-    // 4. Call Gemini API
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: prompt,
-        config: {
-            temperature: 0.3,
-            topP: 0.95,
+        // 3. Create a detailed prompt
+        const prompt = createPrompt(repoUrl, repoData);
+
+        // 4. Call Gemini API
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                temperature: 0.3,
+                topP: 0.95,
+            }
+        });
+
+        const readmeText = response.text;
+        if (!readmeText) {
+            throw new Error("Received an empty response from the AI model.");
         }
-    });
 
-    const readmeText = response.text;
-    if (!readmeText) {
-        throw new Error("Received an empty response from the AI model.");
+        const readme = readmeText.replace(/^```markdown\n/, '').replace(/\n```$/, '');
+        res.status(200).json({ readme });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
+        res.status(500).json({ error: errorMessage });
     }
-    
-    return readmeText.replace(/^```markdown\n/, '').replace(/\n```$/, '');
-};
+}

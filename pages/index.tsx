@@ -1,11 +1,9 @@
-
 import React, { useState, useCallback } from 'react';
-import { Header } from './components/Header';
-import { RepoInput } from './components/RepoInput';
-import { ReadmeDisplay } from './components/ReadmeDisplay';
-import { generateReadmeFromRepo } from './services/geminiService';
+import { Header } from '../components/Header';
+import { RepoInput } from '../components/RepoInput';
+import { ReadmeDisplay } from '../components/ReadmeDisplay';
 
-const App: React.FC = () => {
+const Home = () => {
     const [repoUrl, setRepoUrl] = useState<string>('');
     const [generatedReadme, setGeneratedReadme] = useState<string>('');
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -22,8 +20,21 @@ const App: React.FC = () => {
         setGeneratedReadme('');
 
         try {
-            const readme = await generateReadmeFromRepo(repoUrl);
-            setGeneratedReadme(readme);
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ repoUrl }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'An unexpected error occurred.');
+            }
+
+            const data = await response.json();
+            setGeneratedReadme(data.readme);
         } catch (err) {
             console.error(err);
             const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred.';
@@ -69,4 +80,4 @@ const App: React.FC = () => {
     );
 };
 
-export default App;
+export default Home;
