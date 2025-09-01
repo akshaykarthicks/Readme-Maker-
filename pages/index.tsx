@@ -75,6 +75,7 @@ const Home = () => {
             </main>
              <footer className="text-center py-6 text-slate-500 text-sm">
                 <p>Powered by Gemini API & GitHub API</p>
+                <p>Made by <a href="https://github.com/akshaykarthicks" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:underline">akshaykarthicks</a></p>
             </footer>
         </div>
     );
